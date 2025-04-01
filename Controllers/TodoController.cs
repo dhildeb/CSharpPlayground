@@ -1,73 +1,100 @@
 using Microsoft.AspNetCore.Mvc;
-using CSharpPlayground.Models;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using BlazorApp1.Data;
+using BlazorApp1.Models;
 
-namespace CSharpPlayground.Controllers
+namespace BlazorApp1.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class TodoController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class TodoController : ControllerBase
+    private readonly ApplicationDbContext _context;
+
+    public TodoController(ApplicationDbContext context)
     {
-        private static List<TodoItem> _todos = new List<TodoItem>();
-        private readonly ILogger<TodoController> _logger;
+        _context = context;
+    }
 
-        public TodoController(ILogger<TodoController> logger)
+    // GET: api/Todo
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Todo>>> GetTodos()
+    {
+        return await _context.Todos.ToListAsync();
+    }
+
+    // GET: api/Todo/5
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Todo>> GetTodo(int id)
+    {
+        var todo = await _context.Todos.FindAsync(id);
+
+        if (todo == null)
         {
-            _logger = logger;
+            return NotFound();
         }
 
-        // GET: api/todo
-        [HttpGet]
-        public IActionResult GetAll()
+        return todo;
+    }
+
+    // POST: api/Todo
+    [HttpPost]
+    public async Task<ActionResult<Todo>> PostTodo(Todo todo)
+    {
+        _context.Todos.Add(todo);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetTodo), new { id = todo.Id }, todo);
+    }
+
+    // PUT: api/Todo/5
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutTodo(int id, Todo todo)
+    {
+        if (id != todo.Id)
         {
-            _logger.LogDebug("test");
-            return Ok(_todos);
+            return BadRequest();
         }
 
-        // GET: api/todo/1
-        [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+        _context.Entry(todo).State = EntityState.Modified;
+
+        try
         {
-            var todo = _todos.FirstOrDefault(t => t.Id == id);
-            if (todo == null)
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!TodoExists(id))
+            {
                 return NotFound();
-            
-            return Ok(todo);
+            }
+            else
+            {
+                throw;
+            }
         }
 
-        // POST: api/todo
-        [HttpPost]
-        public IActionResult Create(TodoItem todo)
+        return NoContent();
+    }
+
+    // DELETE: api/Todo/5
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteTodo(int id)
+    {
+        var todo = await _context.Todos.FindAsync(id);
+        if (todo == null)
         {
-            todo.Id = _todos.Count + 1;
-            _todos.Add(todo);
-            return CreatedAtAction(nameof(GetById), new { id = todo.Id }, todo);
+            return NotFound();
         }
 
-        // PUT: api/todo/1
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, TodoItem todo)
-        {
-            var existingTodo = _todos.FirstOrDefault(t => t.Id == id);
-            if (existingTodo == null)
-                return NotFound();
+        _context.Todos.Remove(todo);
+        await _context.SaveChangesAsync();
 
-            existingTodo.Title = todo.Title;
-            existingTodo.IsCompleted = todo.IsCompleted;
-            
-            return Ok(existingTodo);
-        }
+        return NoContent();
+    }
 
-        // DELETE: api/todo/1
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
-        {
-            var todo = _todos.FirstOrDefault(t => t.Id == id);
-            if (todo == null)
-                return NotFound();
-
-            _todos.Remove(todo);
-            return NoContent();
-        }
+    private bool TodoExists(int id)
+    {
+        return _context.Todos.Any(e => e.Id == id);
     }
 }

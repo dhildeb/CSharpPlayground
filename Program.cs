@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using BlazorApp1.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://localhost:5056", "https://localhost:7056");
@@ -13,6 +16,10 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .SetIsOriginAllowed(origin => true));
 });
+
+// Add DbContext
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
